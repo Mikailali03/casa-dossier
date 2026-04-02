@@ -1,0 +1,33 @@
+@import "tailwindcss";
+@media print {
+  /* Hide the entire app by default when printing */
+  body * {
+    visibility: hidden;
+  }
+  
+  /* Show only the specific label container */
+  #printable-label, #printable-label * {
+    visibility: visible;
+  }
+
+  #printable-label {
+    position: absolute;
+    left: 0;
+    top: 0;
+    width: 3in; /* Standard label size */
+    height: 3in;
+    padding: 0.2in;
+    border: 1px solid #000;
+    display: flex !important;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    background-color: white !important;
+    color: black !important;
+  }
+
+  /* Reset layout for print */
+  body {
+    background-color: white !important;
+  }
+}

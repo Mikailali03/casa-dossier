@@ -1,0 +1,33 @@
+
+[functions.research-maintenance]
+enabled = true
+verify_jwt = true
+import_map = "./functions/research-maintenance/deno.json"
+# Uncomment to specify a custom file path to the entrypoint.
+# Supported file extensions are: .ts, .js, .mjs, .jsx, .tsx
+entrypoint = "./functions/research-maintenance/index.ts"
+# Specifies static files to be bundled with the function. Supports glob patterns.
+# For example, if you want to serve static HTML pages in your function:
+# static_files = [ "./functions/research-maintenance/*.html" ]
+
+[functions.research-property-plans]
+enabled = true
+verify_jwt = true
+import_map = "./functions/research-property-plans/deno.json"
+# Uncomment to specify a custom file path to the entrypoint.
+# Supported file extensions are: .ts, .js, .mjs, .jsx, .tsx
+entrypoint = "./functions/research-property-plans/index.ts"
+# Specifies static files to be bundled with the function. Supports glob patterns.
+# For example, if you want to serve static HTML pages in your function:
+# static_files = [ "./functions/research-property-plans/*.html" ]
+
+[functions.send-transfer-invite]
+enabled = true
+verify_jwt = true
+import_map = "./functions/send-transfer-invite/deno.json"
+# Uncomment to specify a custom file path to the entrypoint.
+# Supported file extensions are: .ts, .js, .mjs, .jsx, .tsx
+entrypoint = "./functions/send-transfer-invite/index.ts"
+# Specifies static files to be bundled with the function. Supports glob patterns.
+# For example, if you want to serve static HTML pages in your function:
+# static_files = [ "./functions/send-transfer-invite/*.html" ]
