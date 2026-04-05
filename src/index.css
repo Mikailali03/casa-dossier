@@ -1,33 +1,53 @@
 @import "tailwindcss";
 @media print {
-  /* Hide the entire app by default when printing */
+  /* 1. Hide everything by default */
   body * {
     visibility: hidden;
+    -webkit-print-color-adjust: exact !important; /* Forces colors/backgrounds to print */
+    print-color-adjust: exact !important;
   }
   
-  /* Show only the specific label container */
+  /* 2. Logic for the QR Label */
   #printable-label, #printable-label * {
-    visibility: visible;
+    visibility: visible !important;
   }
 
   #printable-label {
     position: absolute;
     left: 0;
     top: 0;
-    width: 3in; /* Standard label size */
+    width: 3in;
     height: 3in;
-    padding: 0.2in;
-    border: 1px solid #000;
     display: flex !important;
-    flex-direction: column;
-    align-items: center;
-    justify-content: center;
+  }
+
+  /* 3. Logic for the Full Property Report */
+  #printable-report, #printable-report * {
+    visibility: visible !important;
+  }
+
+  #printable-report {
+    position: absolute;
+    left: 0;
+    top: 0;
+    width: 100%;
     background-color: white !important;
     color: black !important;
   }
 
-  /* Reset layout for print */
-  body {
-    background-color: white !important;
+  /* Hide the Action Bar (Close/Print buttons) during actual print */
+  .print-hide {
+    display: none !important;
   }
+}
+@keyframes scan-line {
+  0% { top: 0%; opacity: 0; }
+  20% { opacity: 1; }
+  80% { opacity: 1; }
+  100% { top: 100%; opacity: 0; }
+}
+
+.animate-scan-line {
+  position: absolute;
+  animation: scan-line 3s infinite ease-in-out;
 }

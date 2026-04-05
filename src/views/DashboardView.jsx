@@ -12,15 +12,9 @@ import WelcomeModal from '../modals/WelcomeModal';
 import AuditModal from '../modals/AuditModal';
 
 export default function DashboardView({ 
-  activeProperty, 
-  assets, 
-  dueTasks, 
-  healthScore, 
-  providers, 
-  setSelectedAsset, 
-  setShowOutlook, 
-  setShowLedger, 
-  onRefresh 
+  activeProperty, assets, dueTasks, healthScore, providers, 
+  setSelectedAsset, setShowOutlook, setShowLedger, 
+  hasSeenOnboarding, onRefresh 
 }) {
   const [showAddModal, setShowAddModal] = useState(false);
   const [showProsModal, setShowProsModal] = useState(false);
@@ -28,14 +22,14 @@ export default function DashboardView({
   const [showAudit, setShowAudit] = useState(false);
   const [carouselIndex, setCarouselIndex] = useState(0);
 
-  // --- WELCOME LOGIC: Only show if strictly false ---
+  // Trigger welcome message if user profile flag is false
   useEffect(() => {
-    if (activeProperty && activeProperty.has_seen_onboarding === false) {
+    if (hasSeenOnboarding === false) {
       setShowWelcome(true);
     } else {
       setShowWelcome(false);
     }
-  }, [activeProperty?.id, activeProperty?.has_seen_onboarding]);
+  }, [hasSeenOnboarding]);
 
   const activeAssets = [...assets]
     .filter(a => a.status === 'active')
@@ -66,14 +60,9 @@ export default function DashboardView({
       </div>
 
       <StatsStrip 
-        activeAssetsCount={activeAssets.length} 
-        dueTasksCount={dueTasks.length} 
-        providersCount={providers.length} 
-        healthScore={healthScore}
-        onProsClick={() => setShowProsModal(true)} 
-        onCapExClick={() => setShowOutlook(true)} 
-        onLedgerClick={() => setShowLedger(true)}
-        onHealthClick={() => setShowAudit(true)}
+        activeAssetsCount={activeAssets.length} dueTasksCount={dueTasks.length} providersCount={providers.length} 
+        healthScore={healthScore} onProsClick={() => setShowProsModal(true)} onCapExClick={() => setShowOutlook(true)} 
+        onLedgerClick={() => setShowLedger(true)} onHealthClick={() => setShowAudit(true)}
       />
 
       {dueTasks.length > 0 && (
@@ -87,33 +76,26 @@ export default function DashboardView({
               <div className="flex items-center justify-center md:justify-start gap-4 text-slate-500 font-mono text-[10px] uppercase font-bold tracking-widest"><Calendar className="w-3 h-3" /> Due: {dueTasks[carouselIndex].next_due_date}</div>
             </div>
             <div className="flex items-center gap-4">
-              <div className="flex items-center border border-slate-800 rounded-sm overflow-hidden bg-slate-950">
+              <div className="flex items-center border border-slate-800 rounded-sm overflow-hidden bg-slate-950 shadow-inner">
                 <button onClick={prevTask} className="p-3 hover:bg-slate-800 text-slate-400 border-r border-slate-800 transition-colors"><ChevronLeft className="w-4 h-4" /></button>
                 <button onClick={nextTask} className="p-3 hover:bg-slate-800 text-slate-400 transition-colors"><ChevronRight className="w-4 h-4" /></button>
               </div>
-              <button onClick={() => setSelectedAsset(assets.find(a => a.id === dueTasks[carouselIndex].asset_id))} className="bg-amber-500 text-slate-950 p-4 hover:bg-amber-400 transition-all shadow-lg active:scale-95"><ArrowUpRight className="w-5 h-5" /></button>
+              <button onClick={() => setSelectedAsset(activeAssets.find(a => a.id === dueTasks[carouselIndex].asset_id))} className="bg-amber-500 text-slate-950 p-4 hover:bg-amber-400 transition-all shadow-lg active:scale-95"><ArrowUpRight className="w-5 h-5" /></button>
             </div>
           </div>
         </section>
       )}
 
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 mb-20">
-        {activeAssets.map((asset) => (<AssetCard key={asset.id} asset={asset} onSelect={setSelectedAsset} />))}
-      </div>
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 mb-20">{activeAssets.map((asset) => (<AssetCard key={asset.id} asset={asset} onSelect={setSelectedAsset} />))}</div>
 
       {retiredAssets.length > 0 && (
-        <section className="pt-12 border-t border-slate-900">
-          <h3 className="text-[10px] font-black uppercase tracking-[0.3em] text-slate-600 mb-6 flex items-center gap-2 font-mono text-left"><Archive className="w-4 h-4" /> Property Archives</h3>
-          <div className="grid grid-cols-2 md:grid-cols-6 gap-4">
-            {retiredAssets.map(a => (<div key={a.id} onClick={() => setSelectedAsset(a)} className="bg-slate-900/50 border border-slate-800 p-4 opacity-50 hover:opacity-100 cursor-pointer transition-all grayscale hover:grayscale-0 rounded-sm shadow-sm"><p className="text-[9px] font-mono text-slate-500 uppercase truncate text-left">{a.brand !== 'N/A' ? a.brand : 'Historical'}</p><h4 className="text-white font-bold uppercase text-[10px] truncate text-left">{a.sub_category}</h4></div>))}
-          </div>
-        </section>
+        <section className="pt-12 border-t border-slate-900"><h3 className="text-[10px] font-black uppercase tracking-[0.3em] text-slate-600 mb-6 flex items-center gap-2 font-mono text-left"><Archive className="w-4 h-4" /> Property Archives</h3><div className="grid grid-cols-2 md:grid-cols-6 gap-4">{retiredAssets.map(a => (<div key={a.id} onClick={() => setSelectedAsset(a)} className="bg-slate-900/50 border border-slate-800 p-4 opacity-50 hover:opacity-100 cursor-pointer transition-all grayscale hover:grayscale-0 rounded-sm shadow-sm"><p className="text-[9px] font-mono text-slate-500 uppercase truncate text-left">{a.brand !== 'N/A' ? a.brand : 'Historical'}</p><h4 className="text-white font-bold uppercase text-[10px] truncate text-left">{a.sub_category}</h4></div>))}</div></section>
       )}
 
       {showAudit && <AuditModal assets={assets} dueTasks={dueTasks} healthScore={healthScore} onClose={() => setShowAudit(false)} onSelectAsset={setSelectedAsset} />}
       
-      {/* THE WELCOME TRIGGER */}
-      {showWelcome && <WelcomeModal propertyId={activeProperty.id} onClose={() => { setShowWelcome(false); onRefresh(); }} />}
+      {/* THE WELCOME TRIGGER USES USER ID NOW */}
+      {showWelcome && <WelcomeModal userId={activeProperty.owner_id} onClose={() => { setShowWelcome(false); onRefresh(); }} />}
       
       {showAddModal && <AssetModal activeProperty={activeProperty} propertyId={activeProperty.id} onClose={() => setShowAddModal(false)} onRefresh={onRefresh} />}
       {showProsModal && <ProDirectoryModal activeProperty={activeProperty} onClose={() => setShowProsModal(false)} />}

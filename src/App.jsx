@@ -2,6 +2,9 @@ import React, { useState, useEffect } from 'react';
 import { supabase } from './lib/supabaseClient';
 import { Loader2 } from 'lucide-react';
 
+// Technician "Second Brain"
+import TechApp from './TechApp'; 
+
 // Views
 import AuthView from './views/AuthView';
 import OnboardingView from './views/OnboardingView';
@@ -17,6 +20,8 @@ import Header from './components/Header';
 export default function App() {
   const [loading, setLoading] = useState(true);
   const [session, setSession] = useState(null);
+  const [userProfile, setUserProfile] = useState(null); // Added to track role (homeowner/tech)
+  const [hasSeenOnboarding, setHasSeenOnboarding] = useState(true); 
   const [properties, setProperties] = useState([]); 
   const [activeProperty, setActiveProperty] = useState(null); 
   const [assets, setAssets] = useState([]);
@@ -32,41 +37,69 @@ export default function App() {
   useEffect(() => {
     supabase.auth.getSession().then(({ data: { session } }) => {
       setSession(session);
-      if (session) fetchAllProperties(session.user.id);
+      if (session) fetchUserData(session.user.id);
       else setLoading(false);
     });
 
     const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
       setSession(session);
       if (!session) {
-        setProperties([]); setActiveProperty(null); setAssets([]); setSelectedAsset(null);
-        setShowReport(false); setShowOutlook(false); setShowLedger(false);
+        // Reset all states on logout
+        setProperties([]); 
+        setActiveProperty(null); 
+        setAssets([]); 
+        setSelectedAsset(null);
+        setUserProfile(null);
         setLoading(false);
       } else {
-        fetchAllProperties(session.user.id);
+        fetchUserData(session.user.id);
       }
     });
     return () => subscription.unsubscribe();
   }, []);
 
+  // Only fetch property context if the user is a homeowner and has an active property
   useEffect(() => {
-    if (activeProperty && session) fetchPropertyContext(activeProperty.id);
-  }, [activeProperty, session]);
+    if (activeProperty && session && userProfile?.role === 'homeowner') {
+      fetchPropertyContext(activeProperty.id);
+    }
+  }, [activeProperty, session, userProfile]);
 
-  async function fetchAllProperties(userId) {
+  async function fetchUserData(userId) {
     setLoading(true);
-    const { data } = await supabase.from('properties').select('*').eq('owner_id', userId).order('created_at', { ascending: true });
-    setProperties(data || []);
-    if (data?.length > 0 && !activeProperty) setActiveProperty(data[0]);
+    
+    // 1. Fetch Profile and Role
+    const { data: profile } = await supabase
+      .from('profiles')
+      .select('*')
+      .eq('id', userId)
+      .single();
+    
+    if (profile) {
+      setUserProfile(profile);
+      setHasSeenOnboarding(profile.has_seen_onboarding);
+    }
+
+    // 2. Branching Logic: Only fetch properties if the user is a homeowner
+    if (profile?.role === 'homeowner') {
+      const { data: props } = await supabase
+        .from('properties')
+        .select('*')
+        .eq('owner_id', userId)
+        .order('created_at', { ascending: true });
+      
+      setProperties(props || []);
+      if (props?.length > 0 && !activeProperty) setActiveProperty(props[0]);
+    }
+
     setLoading(false);
   }
 
   async function fetchPropertyContext(propertyId) {
     const [assetsRes, prosRes, propTasksRes, serviceRes] = await Promise.all([
-      supabase.from('assets').select('*, maintenance_tasks (*)').eq('property_id', propertyId),
+      supabase.from('assets').select('*, maintenance_tasks (*), service_records (*)').eq('property_id', propertyId),
       supabase.from('service_providers').select('*').eq('property_id', propertyId),
       supabase.from('maintenance_tasks').select('*').eq('property_id', propertyId).is('asset_id', null),
-      // Join assets to get category for the ledger breakdown
       supabase.from('service_records').select('*, assets!inner(category, sub_category, property_id)').eq('assets.property_id', propertyId)
     ]);
     
@@ -103,23 +136,66 @@ export default function App() {
     setHealthScore(Math.max(0, 100 - (overdueCount * 10)));
   }
 
-  if (loading) return <div className="min-h-screen bg-slate-950 flex flex-col items-center justify-center text-amber-500 font-mono text-center"><Loader2 className="w-8 h-8 animate-spin mb-4" /><p className="text-[10px] tracking-widest uppercase font-bold">Initializing_Dossier...</p></div>;
+  // --- RENDERING LOGIC ---
 
+  if (loading) return (
+    <div className="min-h-screen bg-slate-950 flex flex-col items-center justify-center text-amber-500 font-mono text-center p-10">
+      <Loader2 className="w-8 h-8 animate-spin mb-4 mx-auto" />
+      <p className="text-[10px] tracking-widest uppercase">Initializing_Dossier...</p>
+    </div>
+  );
+
+  // 1. Auth Gate
   if (!session) return <AuthView />;
-  if (properties.length === 0) return <OnboardingView onCreated={() => fetchAllProperties(session.user.id)} userId={session.user.id} />;
+
+  // 2. Technician Portal Switch
+  if (userProfile?.role === 'technician') {
+    return <TechApp profile={userProfile} onLogout={() => supabase.auth.signOut()} />;
+  }
+
+  // 3. Homeowner Onboarding Gate
+  if (properties.length === 0) {
+    return <OnboardingView onCreated={() => fetchUserData(session.user.id)} userId={session.user.id} />;
+  }
   
+  // 4. Homeowner View States
   if (showReport) return <ReportView property={activeProperty} assets={assets} onClose={() => setShowReport(false)} />;
   if (showOutlook) return <CapitalOutlookView assets={assets} onClose={() => setShowOutlook(false)} />;
   if (showLedger) return <InvestmentLedgerView assets={assets} serviceRecords={allServiceRecords} property={activeProperty} onClose={() => setShowLedger(false)} />;
 
+  // 5. Main Homeowner Dashboard
   return (
-    <div className="min-h-screen bg-slate-950 text-slate-200 font-sans selection:bg-amber-500/30">
-      <Header properties={properties} activeProperty={activeProperty} setActiveProperty={setActiveProperty} setSelectedAsset={setSelectedAsset} setShowReport={setShowReport} onRefresh={() => fetchAllProperties(session.user.id)} />
+    <div className="min-h-screen bg-slate-950 text-slate-200 font-sans selection:bg-amber-500/30 text-left">
+      <Header 
+        properties={properties} 
+        activeProperty={activeProperty} 
+        setActiveProperty={setActiveProperty} 
+        setSelectedAsset={setSelectedAsset} 
+        setShowReport={setShowReport} 
+        onRefresh={() => fetchUserData(session.user.id)}
+      />
       <main className="max-w-7xl mx-auto p-6 lg:p-10">
         {selectedAsset ? (
-          <AssetDetailView asset={selectedAsset} setSelectedAsset={setSelectedAsset} providers={providers} onUpdate={() => fetchPropertyContext(activeProperty.id)} />
+          <AssetDetailView 
+            asset={selectedAsset} 
+            activeProperty={activeProperty} 
+            setSelectedAsset={setSelectedAsset} 
+            providers={providers} 
+            onUpdate={() => fetchPropertyContext(activeProperty.id)} 
+          />
         ) : (
-          <DashboardView activeProperty={activeProperty} assets={assets} dueTasks={dueTasks} healthScore={healthScore} providers={providers} setSelectedAsset={setSelectedAsset} setShowOutlook={setShowOutlook} setShowLedger={setShowLedger} onRefresh={() => fetchPropertyContext(activeProperty.id)} />
+          <DashboardView 
+            activeProperty={activeProperty} 
+            assets={assets} 
+            dueTasks={dueTasks} 
+            healthScore={healthScore} 
+            providers={providers} 
+            setSelectedAsset={setSelectedAsset} 
+            setShowOutlook={setShowOutlook} 
+            setShowLedger={setShowLedger} 
+            hasSeenOnboarding={hasSeenOnboarding} 
+            onRefresh={() => fetchUserData(session.user.id)} 
+          />
         )}
       </main>
     </div>

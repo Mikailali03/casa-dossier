@@ -17,16 +17,21 @@ serve(async (req: Request) => {
     const API_URL = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${apiKey}`
 
     const prompt = `
-      You are a regional property steward. Provide a vital maintenance schedule for a home in ${city}, ${state} built in ${year_built}.
-      Focus on non-appliance items (Gutters, Hose Bibs, Smoke Detectors, Siding, etc).
+      You are a regional property steward. Provide a vital stewardship plan for a home in ${city}, ${state} built in ${year_built}.
+      Focus on items NOT associated with a specific appliance (Gutter cleaning, hose bibs, smoke detectors, foundation checks, siding).
       
-      Output a JSON object with a single "tasks" key.
-      Each task MUST include:
-      1. "task_name": Concise technical action.
-      2. "frequency_months": Integer.
-      3. "instructions": A single string using actual newline characters (\\n) for 3-5 steps. 
-         CRITICAL: Do NOT use commas for separation. 
-         
+      You MUST return a JSON object with this exact structure:
+      {
+        "tasks": [
+          {
+            "task_name": "WINTERIZE EXTERIOR HOSE BIBS",
+            "frequency_months": 12,
+            "instructions": "Step 1: Disconnect hoses\\nStep 2: Turn off internal shutoff\\nStep 3: Open exterior tap to drain"
+          }
+        ]
+      }
+
+      CRITICAL: "instructions" must be a single string using \\n. Do NOT use commas to separate steps.
       Return ONLY valid JSON. No preamble.`
 
     const response = await fetch(API_URL, {
@@ -40,7 +45,6 @@ serve(async (req: Request) => {
 
     const result = await response.json()
     const text = result.candidates[0].content.parts[0].text
-    
     return new Response(text, { status: 200, headers: corsHeaders })
 
   } catch (error: any) {

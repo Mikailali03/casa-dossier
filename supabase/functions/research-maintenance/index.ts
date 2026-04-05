@@ -20,28 +20,39 @@ serve(async (req: Request) => {
     
     if (image) {
       userContent = [{
-        text: `Analyze this technical plate photo. 
-        1. Extract: brand, model, serial_number, manufacture_date (YYYY-MM-DD).
-        2. Assign CATEGORY: HVAC, PLUMBING, APPLIANCES, ELECTRICAL, SMART HOME, or STRUCTURE.
-        3. Estimate "estimated_replacement_cost" (Integer USD) for a new unit + professional installation.
-        4. Research official maintenance.
+        text: `You are a technical home systems inspector. Analyze this technical plate photo and research official protocols.
         
         OUTPUT RULES:
-        - Return a JSON object with: "brand", "model", "serial_number", "manufacture_date", "category", "estimated_replacement_cost", and a "tasks" array.
-        - "instructions" in tasks must be a single string with \\n separators.
-        - Return ONLY JSON.`
+        1. "brand", "model", "serial_number", "manufacture_date" (YYYY-MM-DD).
+        2. "category": HVAC, PLUMBING, APPLIANCES, ELECTRICAL, SMART HOME, or STRUCTURE.
+        3. "replacement_cost_est": Integer USD to buy/install new.
+        4. "tasks": Array of objects.
+           - "task_name": Concise action (e.g. REPLACE FILTER).
+           - "frequency_months": Integer.
+           - "instructions": Single string. 3-5 steps separated by \\n. 
+        
+        CRITICAL: Do NOT use JSON arrays for instructions. Do NOT use commas to separate steps.
+        Return ONLY valid JSON.`
       }, {
         inline_data: { mime_type: "image/jpeg", data: image }
       }];
     } else {
       userContent = [{
-        text: `Research maintenance and replacement costs for: ${brand} ${model} (${category}).
+        text: `Research manufacturer maintenance for: ${brand} ${model} (${category}).
         
-        Output a JSON object with:
-        1. "estimated_replacement_cost": Integer (Typical cost to buy and professionally install a new equivalent).
-        2. "tasks": Array of objects (task_name, frequency_months, instructions string with \\n).
-           
-        Return ONLY valid JSON.`
+        You MUST return a JSON object with this exact structure:
+        {
+          "replacement_cost_est": 2500,
+          "tasks": [
+            {
+              "task_name": "CLEAN CONDENSER COILS",
+              "frequency_months": 12,
+              "instructions": "Step 1: Power down\\nStep 2: Remove debris\\nStep 3: Vacuum fins"
+            }
+          ]
+        }
+        
+        CRITICAL: instructions must be a single string using \\n for newlines. Return ONLY JSON.`
       }];
     }
 
@@ -55,7 +66,8 @@ serve(async (req: Request) => {
     })
 
     const result = await response.json()
-    return new Response(result.candidates[0].content.parts[0].text, { status: 200, headers: corsHeaders })
+    const text = result.candidates[0].content.parts[0].text
+    return new Response(text, { status: 200, headers: corsHeaders })
 
   } catch (error: any) {
     return new Response(JSON.stringify({ error: error.message }), { status: 500, headers: corsHeaders })
