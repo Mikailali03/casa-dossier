@@ -2,22 +2,22 @@ import { defineConfig } from 'vite'
 import react from '@vitejs/plugin-react'
 import tailwindcss from '@tailwindcss/vite'
 
+// https://vite.dev/config/
 export default defineConfig({
   plugins: [
     react(),
-    tailwindcss(),
+    tailwindcss()
   ],
-  build: {
-    // This tells Vite 8 to properly bundle these specific libraries
-    // instead of treating them as "external" dependencies
-    rollupOptions: {
-      external: [], 
-    },
-    commonjsOptions: {
-      include: [/node_modules/],
+  resolve: {
+    // This forces Vite to look for the browser-ready version of Supabase
+    alias: {
+      '@supabase/supabase-js': '@supabase/supabase-js/dist/main/index.js',
     },
   },
-  optimizeDeps: {
-    include: ['@supabase/supabase-js'],
+  build: {
+    rollupOptions: {
+      // This ensures Supabase is bundled into your app and not left out
+      external: [],
+    },
   },
 })
