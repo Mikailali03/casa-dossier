@@ -3,7 +3,7 @@ import { supabase } from '../lib/supabaseClient';
 import { toTitleCase } from '../utils/helpers';
 import { calculateLifecycle } from '../utils/lifecycle';
 import { QRCodeSVG } from 'qrcode.react';
-// VERIFIED ICON LIST: 28 Icons accounted for.
+// VERIFIED ICON LIST: 28 Icons present.
 import { 
   ChevronRight, Edit3, FileText, Lock, Image as ImageIcon, 
   Wrench, Archive, BookOpen, Info, Calendar, ShieldCheck, 
@@ -20,8 +20,7 @@ function MaintenanceTaskItem({ task, onComplete, onDelete, isSaving }) {
   const [cost, setCost] = useState('');
 
   const renderInstructions = (val) => {
-    if (!val) return <p className="text-[10px] text-slate-600 font-mono italic uppercase">No protocol established.</p>;
-    // Split by actual newlines and clean up stray characters
+    if (!val) return <p className="text-[10px] text-slate-600 font-mono italic uppercase text-left">No protocol established.</p>;
     let list = val.split('\n').map(line => line.replace(/^[•\-\*\d\.\s"\[\]]+/, '').replace(/["\[\]]/g, '').trim()).filter(Boolean);
     return (
       <ul className="space-y-3">
@@ -41,12 +40,7 @@ function MaintenanceTaskItem({ task, onComplete, onDelete, isSaving }) {
         <div className="flex-grow">
           <div className="flex items-center gap-3">
             <h4 className="text-white font-bold uppercase text-sm">{task.task_name}</h4>
-            <button 
-              onClick={() => onDelete(task.id)} 
-              className="opacity-0 group-hover:opacity-100 p-1 text-white hover:text-red-500 transition-all duration-200"
-            >
-              <Trash2 className="w-3.5 h-3.5" />
-            </button>
+            <button onClick={() => onDelete(task.id)} className="opacity-0 group-hover:opacity-100 p-1 text-white hover:text-red-500 transition-all duration-200"><Trash2 className="w-3.5 h-3.5" /></button>
           </div>
           <p className="text-[10px] text-slate-500 font-mono mt-1 uppercase font-bold tracking-widest font-mono">DUE: {task.next_due_date}</p>
           {task.instructions && (
@@ -58,27 +52,14 @@ function MaintenanceTaskItem({ task, onComplete, onDelete, isSaving }) {
         <div className="flex items-center gap-3">
           <div className="relative">
             <DollarSign className="absolute left-2 top-1/2 -translate-y-1/2 w-3 h-3 text-slate-600" />
-            <input 
-              type="number" 
-              placeholder="COST" 
-              className="bg-slate-950 border border-slate-800 p-2 pl-6 text-[10px] text-white w-20 font-mono outline-none focus:border-amber-500" 
-              value={cost} 
-              onChange={e => setCost(e.target.value)} 
-            />
+            <input type="number" placeholder="COST" className="bg-slate-950 border border-slate-800 p-2 pl-6 text-[10px] text-white w-20 font-mono outline-none focus:border-amber-500" value={cost} onChange={e => setCost(e.target.value)} />
           </div>
-          <button 
-            onClick={() => onComplete(task, cost)} 
-            className="bg-amber-500 text-slate-950 px-4 py-2 text-[10px] font-black uppercase tracking-widest shadow-lg active:scale-95 transition-all flex items-center gap-2"
-          >
-            Complete
-          </button>
+          <button onClick={() => onComplete(task, cost)} className="bg-amber-500 text-slate-950 px-4 py-2 text-[10px] font-black uppercase tracking-widest shadow-lg active:scale-95 transition-all flex items-center gap-2">Complete</button>
         </div>
       </div>
       {expanded && (
         <div className="mt-4 pt-4 border-t border-slate-800 animate-in slide-in-from-top-2 duration-300 text-left">
-          <div className="bg-slate-950 p-5 rounded-sm border border-slate-800 font-mono text-[11px] text-slate-400 uppercase leading-relaxed tracking-tighter italic">
-            {renderInstructions(task.instructions)}
-          </div>
+          <div className="bg-slate-950 p-5 rounded-sm border border-slate-800 font-mono text-[11px] text-slate-400 uppercase leading-relaxed tracking-tighter italic">{renderInstructions(task.instructions)}</div>
         </div>
       )}
     </div>
@@ -93,17 +74,20 @@ export default function AssetDetailView({ asset, activeProperty, setSelectedAsse
   const [showEditModal, setShowEditModal] = useState(false);
   const [showLogModal, setShowLogModal] = useState(false);
   const [selectedTask, setSelectedTask] = useState(null);
+  const [isSaving, setIsSaving] = useState(false);
 
   const lifecycle = calculateLifecycle(asset.manufacture_date, asset.category, asset.sub_category);
   const isStewardship = asset.sub_category === 'Home Stewardship';
 
-  // UI Clutter Suppression Logic
   const showSerial = asset.serial_number && asset.serial_number !== 'N/A';
   const showModel = asset.model && asset.model !== 'N/A' && asset.model !== 'GENERAL';
   const showBrand = asset.brand && asset.brand !== 'N/A' && asset.brand !== 'PROPERTY';
-  const displayDate = isStewardship ? new Date(asset.manufacture_date).getFullYear() : asset.manufacture_date;
+  
+  // FIX: Use String Splitting instead of Date Object to avoid Timezone Year Drop
+  const displayDate = isStewardship && asset.manufacture_date 
+    ? asset.manufacture_date.split('-')[0] 
+    : asset.manufacture_date;
 
-  // The official CDA Protocol for Technician App recognition
   const qrProtocol = `CDA|${asset.id}|${asset.registry_id || 'N/A'}`;
 
   useEffect(() => { fetchDetails(); }, [asset.id]);
@@ -120,6 +104,19 @@ export default function AssetDetailView({ asset, activeProperty, setSelectedAsse
     } finally { setLoading(false); }
   }
 
+  async function completeTask(task, taskCost) {
+    setIsSaving(true);
+    await supabase.from('service_records').insert([{ 
+      asset_id: asset.id, description_of_work: `Completed: ${task.task_name}`, 
+      service_date: new Date().toISOString().split('T')[0], cost: parseInt(taskCost) || 0, type: 'DIY'
+    }]);
+    const nextDate = new Date(); nextDate.setMonth(nextDate.getMonth() + (task.frequency_months || 6));
+    await supabase.from('maintenance_tasks').update({ next_due_date: nextDate.toISOString().split('T')[0] }).eq('id', task.id);
+    await fetchDetails();
+    onUpdate();
+    setIsSaving(false);
+  }
+
   async function deleteTask(taskId) {
     if (!confirm("Permanently remove?")) return;
     await supabase.from('maintenance_tasks').delete().eq('id', taskId);
@@ -127,17 +124,21 @@ export default function AssetDetailView({ asset, activeProperty, setSelectedAsse
     onUpdate();
   }
 
-  if (loading) return (
-    <div className="p-20 text-center flex flex-col items-center">
-      <Loader2 className="animate-spin text-amber-500 w-8 h-8 mb-4" />
-      <p className="text-[10px] font-mono text-slate-500 uppercase tracking-widest font-bold">Accessing_Dossier_Vault...</p>
-    </div>
-  );
+  async function retireAsset() {
+    if (!confirm("Move to Property Archives? Action is permanent.")) return;
+    setIsSaving(true);
+    try {
+      const { error } = await supabase.from('assets').update({ status: 'retired', retired_date: new Date().toISOString().split('T')[0] }).eq('id', asset.id);
+      if (!error) { setSelectedAsset(null); onUpdate(); }
+    } catch (e) { alert(e.message); }
+    finally { setIsSaving(false); }
+  }
+
+  if (loading) return <div className="p-20 text-center flex flex-col items-center"><Loader2 className="animate-spin text-amber-500 w-8 h-8 mb-4" /><p className="text-[10px] font-mono text-slate-500 uppercase tracking-widest font-bold">Accessing_Dossier_Vault...</p></div>;
 
   return (
     <div className="animate-in fade-in slide-in-from-bottom-4 duration-500 font-sans">
       
-      {/* HIDDEN PRINT-ONLY LABEL (Logic for individual asset tag) */}
       <div id="printable-label" className="hidden flex-col items-center text-center bg-white text-black p-4 border border-black font-sans">
         <h2 className="text-sm font-black uppercase mb-1">{asset.sub_category}</h2>
         <p className="text-[10px] font-bold uppercase mb-4">{asset.brand} {showModel ? asset.model : ''}</p>
@@ -145,113 +146,54 @@ export default function AssetDetailView({ asset, activeProperty, setSelectedAsse
         <p className="text-[8px] font-mono mt-4 uppercase font-bold tracking-tighter">Verified Service History Record<br/>Casa Dossier Protocol v1.0</p>
       </div>
 
-      {/* VIEW HEADER */}
       <div className="flex justify-between items-center mb-8">
-        <button onClick={() => setSelectedAsset(null)} className="flex items-center gap-2 text-slate-500 hover:text-white text-[10px] font-black uppercase tracking-widest transition-colors font-mono">
-          <ChevronRight className="w-4 h-4 rotate-180" /> Dashboard
-        </button>
+        <button onClick={() => setSelectedAsset(null)} className="flex items-center gap-2 text-slate-500 hover:text-white text-[10px] font-black uppercase tracking-widest transition-colors font-mono"><ChevronRight className="w-4 h-4 rotate-180" /> Dashboard</button>
         {asset.status === 'active' ? (
           <div className="flex gap-3">
-            <button onClick={() => setShowEditModal(true)} className="bg-slate-800 text-white p-2 border border-slate-700 hover:border-amber-500 transition-all">
-              <Edit3 className="w-4 h-4" />
-            </button>
-            <button onClick={() => { setSelectedTask(null); setShowLogModal(true); }} className="bg-amber-500 text-slate-950 px-6 py-2 text-[10px] font-black uppercase tracking-widest flex items-center gap-2 shadow-lg hover:bg-white transition-all">
-              Log Service
-            </button>
+            <button onClick={() => setShowEditModal(true)} className="bg-slate-800 text-white p-2 border border-slate-700 hover:border-amber-500 transition-all"><Edit3 className="w-4 h-4" /></button>
+            <button onClick={() => { setSelectedTask(null); setShowLogModal(true); }} className="bg-amber-500 text-slate-950 px-6 py-2 text-[10px] font-black uppercase tracking-widest flex items-center gap-2 shadow-lg hover:bg-white transition-all">Log Service</button>
           </div>
         ) : (
-          <div className="flex items-center gap-2 text-slate-600 font-mono text-[10px] uppercase border border-slate-800 px-4 py-2 bg-slate-900/50">
-            <Lock className="w-3.5 h-3.5" /> Archived Record
+          <div className="flex items-center gap-4">
+             <div className="flex items-center gap-2 text-red-500 font-mono text-[10px] uppercase border border-red-900/30 px-4 py-2 bg-red-950/20">
+               <Archive className="w-3.5 h-3.5" /> Decommissioned: {asset.retired_date}
+             </div>
           </div>
         )}
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-10">
-        
-        {/* --- LEFT COLUMN: IDENTITY & METRICS --- */}
         <div className="lg:col-span-1 space-y-6 text-left">
-          
           <div className="bg-slate-900 border border-slate-800 rounded-sm overflow-hidden shadow-2xl">
-            {asset.image_url ? (
-              <img src={asset.image_url} className="w-full h-48 object-cover border-b border-slate-800" alt="Asset" />
-            ) : (
-              <div className="h-48 bg-slate-950 flex items-center justify-center border-b border-slate-800">
-                <ImageIcon className="w-12 h-12 text-slate-900" />
-              </div>
-            )}
+            {asset.image_url ? <img src={asset.image_url} className="w-full h-48 object-cover border-b border-slate-800" alt="Asset" /> : <div className="h-48 bg-slate-950 flex items-center justify-center border-b border-slate-800"><ImageIcon className="w-12 h-12 text-slate-900" /></div>}
             <div className="p-8">
               <h2 className="text-2xl font-black text-white uppercase mb-1 tracking-tighter">{asset.sub_category}</h2>
-              {showBrand || showModel ? (
-                <p className="text-slate-500 font-mono text-xs uppercase mb-6">{showBrand && asset.brand} {showModel && asset.model}</p>
-              ) : <div className="mb-6"></div>}
-              
+              {showBrand || showModel ? <p className="text-slate-500 font-mono text-xs uppercase mb-6">{showBrand && asset.brand} {showModel && asset.model}</p> : <div className="mb-6"></div>}
               <div className="pt-6 border-t border-slate-800 space-y-4 text-[10px] font-black uppercase tracking-widest text-slate-600 font-mono">
                 {showSerial && <div>SERIAL: <span className="text-slate-300 block text-sm mt-1 font-bold">{asset.serial_number}</span></div>}
                 {showModel && <div>MODEL: <span className="text-slate-300 block text-sm mt-1 font-bold">{asset.model}</span></div>}
-                <div>
-                  {isStewardship ? 'PROPERTY_BUILT:' : 'MANUFACTURED:'} 
-                  <span className="text-slate-300 block text-sm mt-1 font-bold">{displayDate}</span>
-                </div>
+                <div>{isStewardship ? 'PROPERTY_BUILT:' : 'MANUFACTURED:'} <span className="text-slate-300 block text-sm mt-1 font-bold">{displayDate}</span></div>
               </div>
-
-              {asset.notes && (
-                <div className="mt-6 pt-6 border-t border-slate-800 bg-amber-500/5 p-4 rounded-sm">
-                  <div className="flex items-center gap-2 text-amber-500 mb-2 font-mono">
-                    <Key className="w-3 h-3" />
-                    <span className="text-[9px] font-black uppercase tracking-widest">Activation Data</span>
-                  </div>
-                  <p className="text-[11px] text-slate-400 font-mono break-all uppercase">{asset.notes}</p>
-                </div>
-              )}
+              {asset.notes && <div className="mt-6 pt-6 border-t border-slate-800 bg-amber-500/5 p-4 rounded-sm font-mono uppercase text-slate-400 text-[11px] break-all"><div className="flex items-center gap-2 text-amber-500 mb-2"><Key className="w-3 h-3" /> Activation Data</div>{asset.notes}</div>}
             </div>
           </div>
 
-          {/* PHYSICAL QR IDENTITY */}
-          {!isStewardship && (
+          {!isStewardship && asset.status === 'active' && (
             <div className="bg-slate-900 border border-slate-800 p-8 rounded-sm shadow-xl flex flex-col items-center">
-              <div className="flex items-center gap-2 mb-6 w-full">
-                <QrCode className="w-4 h-4 text-amber-500" />
-                <h3 className="text-white font-black uppercase tracking-widest text-[10px] font-mono">Physical Identity Tag</h3>
-              </div>
-              <div className="p-4 bg-white rounded-sm mb-6">
-                <QRCodeSVG value={qrProtocol} size={110} level="H" />
-              </div>
-              <button 
-                onClick={() => window.print()} 
-                className="w-full flex items-center justify-center gap-2 bg-slate-800 text-white border border-slate-700 px-4 py-3 text-[9px] font-black uppercase tracking-widest hover:border-amber-500 transition-all shadow-lg active:scale-95"
-              >
-                <Printer className="w-4 h-4 text-amber-500" /> Print individual Label
-              </button>
+              <div className="flex items-center gap-2 mb-6 w-full"><QrCode className="w-4 h-4 text-amber-500" /><h3 className="text-white font-black uppercase tracking-widest text-[10px] font-mono">Physical Identity Tag</h3></div>
+              <div className="p-4 bg-white rounded-sm mb-6"><QRCodeSVG value={qrProtocol} size={110} level="H" /></div>
+              <button onClick={() => window.print()} className="w-full flex items-center justify-center gap-2 bg-slate-800 text-white border border-slate-700 px-4 py-3 text-[9px] font-black uppercase tracking-widest hover:border-amber-500 transition-all font-mono"><Printer className="w-4 h-4 text-amber-500" /> Print Label</button>
             </div>
           )}
 
-          {/* LIFECYCLE PROJECTION */}
-          <div className="bg-slate-900 border border-slate-800 p-8 rounded-sm shadow-xl text-left font-mono">
-             <h3 className="text-white font-black uppercase tracking-widest text-[10px] mb-6 flex items-center gap-2"><Hourglass className="w-4 h-4 text-amber-500" /> Lifecycle Projection</h3>
-             <div className="relative pt-1">
-                <div className="flex mb-2 items-center justify-between text-[10px] font-black uppercase tracking-widest font-mono">
-                  <span className="text-slate-500 italic uppercase">Life expended</span>
-                  <span className={lifecycle.status === 'critical' ? 'text-red-500' : 'text-amber-500'}>{lifecycle.percentUsed}%</span>
-                </div>
-                <div className="overflow-hidden h-2 mb-4 text-xs flex rounded bg-slate-950 border border-slate-800">
-                  <div style={{ width: `${lifecycle.percentUsed}%` }} className={`shadow-none flex flex-col text-center whitespace-nowrap text-white justify-center ${lifecycle.status === 'critical' ? 'bg-red-500' : 'bg-amber-500'}`}></div>
-                </div>
-             </div>
-             <div className="grid grid-cols-2 gap-4">
-                <div className="bg-slate-950 p-4 border border-slate-800 text-center"><p className="text-[8px] font-black text-slate-600 uppercase mb-1">Age</p><p className="text-xl text-white font-bold">{lifecycle.age}Y</p></div>
-                <div className="bg-slate-950 p-4 border border-slate-800 text-center"><p className="text-[8px] font-black text-slate-600 uppercase mb-1">Remaining</p><p className={`text-xl font-bold ${lifecycle.status === 'critical' ? 'text-red-500' : 'text-emerald-500'}`}>{lifecycle.yearsRemaining}Y</p></div>
-             </div>
-          </div>
-
-          {/* FINANCIAL BASIS */}
           <div className="bg-slate-900 border border-slate-800 p-8 rounded-sm shadow-xl text-left space-y-6">
              {!isStewardship && (
                <div>
-                 <h3 className="text-white font-black uppercase tracking-widest text-[10px] mb-3 flex items-center gap-2 font-mono"><DollarSign className="w-4 h-4 text-amber-500" /> Financial Basis</h3>
+                 <h3 className="text-white font-black uppercase tracking-widest text-[10px] mb-3 flex items-center gap-2 font-mono"><DollarSign className="w-4 h-4 text-amber-500" /> Financial Value</h3>
                  <div className="bg-slate-950 p-4 border border-slate-800 rounded-sm space-y-4">
                    <div><p className="text-[8px] font-black text-slate-600 uppercase mb-1 font-mono">Install Cost</p><p className="text-xl font-mono text-white font-bold">${(asset.install_cost || 0).toLocaleString()}</p></div>
                    <div className="pt-3 border-t border-slate-900"><p className="text-[8px] font-black text-amber-600 uppercase mb-1 font-mono">Est. Replacement</p><p className="text-lg font-mono text-amber-500 font-bold">${(asset.replacement_cost_est || 0).toLocaleString()}</p></div>
-                   {asset.install_receipt_url && <a href={asset.install_receipt_url} target="_blank" className="flex items-center gap-2 text-amber-500 text-[9px] font-black uppercase hover:text-white transition-colors underline font-mono">View Original Bill <ArrowUpRight className="w-3 h-3" /></a>}
+                   {asset.install_receipt_url && <a href={asset.install_receipt_url} target="_blank" className="flex items-center gap-2 text-amber-500 text-[9px] font-black uppercase hover:text-white transition-colors underline font-mono">Original Invoice <ArrowUpRight className="w-3 h-3" /></a>}
                  </div>
                </div>
              )}
@@ -263,11 +205,13 @@ export default function AssetDetailView({ asset, activeProperty, setSelectedAsse
                </div>
              </div>
           </div>
+          
+          {!isStewardship && asset.status === 'active' && (
+            <div className="pt-4"><button onClick={retireAsset} className="w-full border border-red-900/30 text-red-900 hover:bg-red-900 hover:text-white p-3 text-[10px] font-black uppercase tracking-widest transition-all flex items-center justify-center gap-2"><Archive className="w-3 h-3" /> Retire to Archive</button></div>
+          )}
         </div>
 
-        {/* --- RIGHT COLUMN: SCHEDULE & HISTORY --- */}
         <div className="lg:col-span-2 space-y-8 text-left">
-          
           {asset.status === 'active' && (
             <section>
               <h3 className="text-white font-black uppercase tracking-widest text-xs mb-4 flex items-center gap-2 font-mono"><Calendar className="w-4 h-4 text-amber-500" /> Maintenance Schedule</h3>
@@ -289,10 +233,7 @@ export default function AssetDetailView({ asset, activeProperty, setSelectedAsse
                       <h4 className="text-white font-bold uppercase text-sm">{r.description_of_work}</h4>
                       {r.type === 'PRO' ? <span className="text-[8px] font-black bg-amber-500 text-slate-950 px-1.5 py-0.5 rounded-xs tracking-tighter uppercase font-mono">PRO</span> : <span className="text-[8px] font-black bg-slate-800 text-slate-500 px-1.5 py-0.5 rounded-xs tracking-tighter uppercase font-mono border border-slate-700">DIY</span>}
                     </div>
-                    <div className="flex items-center gap-4 text-[10px] font-black uppercase text-slate-600">
-                      <span className="text-amber-500 flex items-center gap-1"><UserCheck className="w-3 h-3" /> {toTitleCase(r.provider_name)} • {r.service_date}</span> 
-                      {r.cost > 0 && <span className="ml-2 text-slate-400 text-xs font-mono">${r.cost.toLocaleString()}</span>}
-                    </div>
+                    <div className="flex items-center gap-4 text-[10px] font-black uppercase text-slate-600"><UserCheck className="w-3 h-3 text-slate-600" /> {toTitleCase(r.provider_name)} • {r.service_date} {r.cost > 0 && <span className="ml-2 text-slate-400 font-mono text-xs">${r.cost.toLocaleString()}</span>}</div>
                   </div>
                   <div className="text-right">{r.receipt_url && <a href={r.receipt_url} target="_blank" rel="noreferrer" className="text-amber-500 hover:text-white uppercase font-black text-[9px] tracking-widest flex items-center gap-1 underline">Receipt <ArrowUpRight className="w-3 h-3" /></a>}</div>
                 </div>
@@ -301,17 +242,7 @@ export default function AssetDetailView({ asset, activeProperty, setSelectedAsse
           </section>
         </div>
       </div>
-
-      {showEditModal && (
-        <AssetModal 
-          activeProperty={activeProperty} 
-          propertyId={asset.property_id} 
-          asset={asset} 
-          editMode={true} 
-          onClose={() => setShowEditModal(false)} 
-          onRefresh={onUpdate} 
-        />
-      )}
+      {showEditModal && <AssetModal activeProperty={activeProperty} propertyId={asset.property_id} asset={asset} editMode={true} onClose={() => setShowEditModal(false)} onRefresh={onUpdate} />}
       {showLogModal && <ServiceLogModal assetId={asset.id} task={selectedTask} providers={providers} onClose={() => { setShowLogModal(false); setSelectedTask(null); }} onRefresh={() => { fetchDetails(); onUpdate(); }} />}
     </div>
   );
