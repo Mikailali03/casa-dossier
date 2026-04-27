@@ -51,3 +51,33 @@
   position: absolute;
   animation: scan-line 3s infinite ease-in-out;
 }
+
+/* Prevent zoom on focus for all inputs/selects on mobile */
+@media screen and (max-width: 768px) {
+  input, 
+  select, 
+  textarea {
+    font-size: 16px !important; /* The magic number to stop iOS zoom */
+  }
+
+  /* If 16px makes the text look too big for your design, 
+     we use a slight scale-down to keep the visual 'density' 
+     while the browser 'sees' 16px. */
+  input::placeholder {
+    font-size: 12px;
+    text-transform: uppercase;
+  }
+}
+
+/* Ensure the wrapper doesn't bounce around when the keyboard pops up */
+html, body {
+  height: 100%;
+  overflow: hidden;
+  overscroll-behavior-y: none; /* Disables the pull-to-refresh 'glow' */
+}
+
+main {
+  height: 100%;
+  overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
+}
