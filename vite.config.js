@@ -7,8 +7,13 @@ export default defineConfig({
     react(),
     tailwindcss(),
   ],
+  ssr: {
+    // This forces Vite to process the Supabase library 
+    noExternal: ['@supabase/supabase-js']
+  },
   build: {
-    // This ensures that modern JS is generated
-    target: 'esnext'
+    commonjsOptions: {
+      transformMixedEsModules: true
+    }
   }
 })
