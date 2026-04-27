@@ -164,40 +164,44 @@ export default function App() {
   if (showLedger) return <InvestmentLedgerView assets={assets} serviceRecords={allServiceRecords} property={activeProperty} onClose={() => setShowLedger(false)} />;
 
   // 5. Main Homeowner Dashboard
-  return (
-    <div className="min-h-screen bg-slate-950 text-slate-200 font-sans selection:bg-amber-500/30 text-left">
+   return (
+    <div className="flex flex-col h-full w-full bg-slate-950 text-slate-200 font-sans selection:bg-amber-500/30">
       <Header 
         properties={properties} 
         activeProperty={activeProperty} 
         setActiveProperty={setActiveProperty} 
-        setSelectedAsset={setSelectedAsset} 
-        setShowReport={setShowReport} 
+        setSelectedAsset={setSelectedAsset}
+        setShowReport={setShowReport}
         onRefresh={() => fetchUserData(session.user.id)}
       />
-      <main className="max-w-7xl mx-auto p-6 lg:p-10">
-        {selectedAsset ? (
-          <AssetDetailView 
-            asset={selectedAsset} 
-            activeProperty={activeProperty} 
-            setSelectedAsset={setSelectedAsset} 
-            providers={providers} 
-            onUpdate={() => fetchPropertyContext(activeProperty.id)} 
-          />
-        ) : (
-          <DashboardView 
-            activeProperty={activeProperty} 
-            assets={assets} 
-            dueTasks={dueTasks} 
-            healthScore={healthScore} 
-            providers={providers} 
-            setSelectedAsset={setSelectedAsset} 
-            setShowOutlook={setShowOutlook} 
-            setShowLedger={setShowLedger} 
-            hasSeenOnboarding={hasSeenOnboarding} 
-            onRefresh={() => fetchUserData(session.user.id)} 
-          />
-        )}
-      </main>
+
+      {/* NEW WRAPPER: This div handles all the scrolling for the app */}
+      <div className="app-scroller">
+        <main className="max-w-7xl mx-auto p-6 lg:p-10">
+          {selectedAsset ? (
+            <AssetDetailView 
+              asset={selectedAsset} 
+              activeProperty={activeProperty}
+              setSelectedAsset={setSelectedAsset} 
+              providers={providers}
+              onUpdate={() => fetchPropertyContext(activeProperty.id)}
+            />
+          ) : (
+            <DashboardView 
+              activeProperty={activeProperty} 
+              assets={assets} 
+              dueTasks={dueTasks} 
+              healthScore={healthScore}
+              providers={providers}
+              setSelectedAsset={setSelectedAsset}
+              setShowOutlook={setShowOutlook}
+              setShowLedger={setShowLedger}
+              hasSeenOnboarding={hasSeenOnboarding}
+              onRefresh={() => fetchPropertyContext(activeProperty.id)}
+            />
+          )}
+        </main>
+      </div>
     </div>
   );
 }

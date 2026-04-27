@@ -1,83 +1,33 @@
 @import "tailwindcss";
-@media print {
-  /* 1. Hide everything by default */
-  body * {
-    visibility: hidden;
-    -webkit-print-color-adjust: exact !important; /* Forces colors/backgrounds to print */
-    print-color-adjust: exact !important;
-  }
-  
-  /* 2. Logic for the QR Label */
-  #printable-label, #printable-label * {
-    visibility: visible !important;
-  }
 
-  #printable-label {
-    position: absolute;
-    left: 0;
-    top: 0;
-    width: 3in;
-    height: 3in;
-    display: flex !important;
-  }
-
-  /* 3. Logic for the Full Property Report */
-  #printable-report, #printable-report * {
-    visibility: visible !important;
-  }
-
-  #printable-report {
-    position: absolute;
-    left: 0;
-    top: 0;
-    width: 100%;
-    background-color: white !important;
-    color: black !important;
-  }
-
-  /* Hide the Action Bar (Close/Print buttons) during actual print */
-  .print-hide {
-    display: none !important;
-  }
-}
-@keyframes scan-line {
-  0% { top: 0%; opacity: 0; }
-  20% { opacity: 1; }
-  80% { opacity: 1; }
-  100% { top: 100%; opacity: 0; }
-}
-
-.animate-scan-line {
-  position: absolute;
-  animation: scan-line 3s infinite ease-in-out;
-}
-
-/* Prevent zoom on focus for all inputs/selects on mobile */
-@media screen and (max-width: 768px) {
-  input, 
-  select, 
-  textarea {
-    font-size: 16px !important; /* The magic number to stop iOS zoom */
-  }
-
-  /* If 16px makes the text look too big for your design, 
-     we use a slight scale-down to keep the visual 'density' 
-     while the browser 'sees' 16px. */
-  input::placeholder {
-    font-size: 12px;
-    text-transform: uppercase;
-  }
-}
-
-/* Ensure the wrapper doesn't bounce around when the keyboard pops up */
-html, body {
+/* 1. Reset and Lock Viewport */
+html, body, #root {
   height: 100%;
-  overflow: hidden;
-  overscroll-behavior-y: none; /* Disables the pull-to-refresh 'glow' */
+  width: 100%;
+  margin: 0;
+  padding: 0;
+  overflow: hidden; /* Prevents the whole browser/app from bouncing */
+  background-color: #020617; /* Slate 950 */
+  -webkit-text-size-adjust: 100%;
 }
 
-main {
-  height: 100%;
+/* 2. The Main Content Scroller */
+/* This is what will actually scroll */
+.app-scroller {
+  height: calc(100vh - 64px); /* Full height minus Header height */
   overflow-y: auto;
-  -webkit-overflow-scrolling: touch;
+  overflow-x: hidden;
+  -webkit-overflow-scrolling: touch; /* Enables smooth 'momentum' scrolling on iOS */
+}
+
+/* 3. Hide Scrollbars (Optional, for the clean industrial look) */
+.app-scroller::-webkit-scrollbar {
+  display: none;
+}
+
+/* 4. Prevent mobile zoom on inputs */
+@media screen and (max-width: 768px) {
+  input, select, textarea {
+    font-size: 16px !important;
+  }
 }
