@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useMemo } from 'react';
+import { Analytics } from '@vercel/analytics/react';
 import { supabase } from './lib/supabaseClient';
 import { ShoppingCart } from 'lucide-react';
 
@@ -297,6 +298,7 @@ export default function TechApp({ profile, onLogout }) {
               </div>
           </button>
       )}
+      <Analytics />
     </div>
   );
 }

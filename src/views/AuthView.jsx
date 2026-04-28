@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { Analytics } from '@vercel/analytics/react';
 import { supabase } from '../lib/supabaseClient';
 import { Home, Mail, Lock, AlertCircle, Loader2 } from 'lucide-react';
 
@@ -37,6 +38,7 @@ export default function AuthView() {
           {isSignUp ? 'Return to login' : 'Register New Property'}
         </button>
       </div>
+      <Analytics />
     </div>
   );
 }

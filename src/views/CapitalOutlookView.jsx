@@ -1,4 +1,5 @@
 import React from 'react';
+import { Analytics } from '@vercel/analytics/react';
 import { 
   LineChart, 
   Line, 
@@ -142,6 +143,7 @@ export default function CapitalOutlookView({ assets, onClose }) {
            Projection algorithm identifies fiscal year liability based on manufacturer specific lifecycle datasets. High-impact years denote replacement costs exceeding $5,000 USD.
         </div>
       </div>
+      <Analytics />
     </div>
   );
 }

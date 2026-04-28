@@ -1,4 +1,5 @@
 import React from 'react';
+import { Analytics } from '@vercel/analytics/react';
 import { PieChart, Pie, Cell, ResponsiveContainer, Tooltip } from 'recharts';
 import { ArrowLeft, PiggyBank, CreditCard, TrendingUp, History, Wrench, Shield, ArrowUpRight } from 'lucide-react';
 
@@ -103,6 +104,7 @@ export default function InvestmentLedgerView({ assets, serviceRecords, property,
           </div>
         </div>
       </div>
+      <Analytics />
     </div>
   );
 }
