@@ -1,4 +1,5 @@
 import React from 'react';
+import { Analytics } from '@vercel/analytics/react';
 import { toTitleCase } from '../utils/helpers';
 // VERIFIED ICON LIST: 9 Icons present.
 import { 
@@ -107,6 +108,7 @@ export default function ReportView({ property, assets, onClose }) {
           </div>
         </div>
       </div>
+      <Analytics />
     </div>
   );
 }
