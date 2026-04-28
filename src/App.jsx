@@ -1,4 +1,13 @@
-import { Analytics } from "@vercel/analytics/react"
+import { Analytics } from '@vercel/analytics/react';
+
+function App() {
+  return (
+    <>
+      <YourRoutes />
+      <Analytics />
+    </>
+  );
+}
 import React, { useState, useEffect } from 'react';
 import { supabase } from './lib/supabaseClient';
 import { Loader2 } from 'lucide-react';
