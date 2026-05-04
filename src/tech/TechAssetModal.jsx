@@ -106,21 +106,12 @@ export default function AssetModal({ activeProperty, propertyId, asset, editMode
   };
 
   const uploadFileAction = async (file, prefix) => {
-  // Use Property ID as the root folder if owner_id is null (Tech Onboarding mode)
-  const folderToken = activeProperty?.owner_id || activeProperty?.id; 
-  
-  const fileName = `${folderToken}/${prefix}-${Date.now()}-${file.name.replace(/[^a-zA-Z0-9.]/g, '_')}`;
-  
-  const { error } = await supabase.storage
-    .from('dossier-assets')
-    .upload(fileName, file);
-
-  if (error) throw error;
-
-  return supabase.storage
-    .from('dossier-assets')
-    .getPublicUrl(fileName).data.publicUrl;
-};
+    const { data: userData } = await supabase.auth.getUser();
+    const fileName = `${userData.user.id}/${prefix}-${Date.now()}-${file.name.replace(/[^a-zA-Z0-9.]/g, '_')}`;
+    const { error } = await supabase.storage.from('dossier-assets').upload(fileName, file);
+    if (error) throw error;
+    return supabase.storage.from('dossier-assets').getPublicUrl(fileName).data.publicUrl;
+  };
 
   const submit = async (e) => {
     e.preventDefault();
